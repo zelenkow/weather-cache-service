@@ -47,3 +47,9 @@ London: 14.2°C [STALE CACHE]
 - хранить кеш просто в `dict`;
 - делать запросы последовательно;
 - падать всей программой из-за ошибки одного города.
+
+## Запуск
+- `curl -LsSf https://astral.sh/uv/install.sh | sh` - (установка uv)
+- `uv sync` - (зависимости)
+- `uv run python solution.py` - (запуск)
+- `uv run pytest -v` - (тесты)

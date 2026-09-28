@@ -35,9 +35,9 @@ def get_weather(conn, city, lat, lon):
         return cached[0], "CACHE"
 
     try:
-        temp = fetch_with_retry(lat, lon)
-        save_to_cache(conn, city, lat, lon, temp)
-        return temp, "API"
+        temperature = fetch_with_retry(lat, lon)
+        save_to_cache(conn, city, lat, lon, temperature)
+        return temperature, "API"
     except httpx.HTTPError:
         if cached:
             return cached[0], "STALE CACHE"
@@ -50,9 +50,10 @@ def init_db(conn):
 
 
 def get_from_cache(conn, city):
-    cursor = conn.cursor()
-    cursor.execute("SELECT temperature, updated_at FROM weather WHERE city = ?", (city,))
-    return cursor.fetchone()
+    with db_lock:
+        cursor = conn.cursor()
+        cursor.execute("SELECT temperature, updated_at FROM weather WHERE city = ?", (city,))
+        return cursor.fetchone()
 
 
 def fetch_with_retry(lat, lon):
@@ -90,6 +91,8 @@ def save_to_cache(conn, city, lat, lon, temperature):
 
 
 def is_fresh(updated_at, ttl=600):
+    if updated_at is None:
+        return False
     return time.time() - updated_at < ttl
 
 
@@ -97,7 +100,7 @@ def main():
     with sqlite3.connect("weather.db", check_same_thread=False) as conn:
         init_db(conn)
 
-        with ThreadPoolExecutor(max_workers=len(CITIES)) as executor:
+        with ThreadPoolExecutor(max_workers=min(len(CITIES), 8)) as executor:
             futures = []
             for city, lat, lon in CITIES:
                 future = executor.submit(get_weather, conn, city, lat, lon)
